@@ -1,0 +1,19 @@
+---
+
+- hosts: uatpc
+  tasks:
+
+  - name: Google Chrome version
+    command: google-chrome-stable --version
+    register: out
+  - debug: var=out.stdout_lines
+
+  - name: Chromium version
+    command: chromium-browser --version
+    register: out
+  - debug: var=out.stdout_lines
+
+  - name: Java version
+    command: java -version
+    register: out
+  - debug: var=out.stdoutlines
