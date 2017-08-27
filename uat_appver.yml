@@ -17,3 +17,6 @@
     command: java -version
     register: out
   - debug: var=out.stdoutlines
+  
+  - name: Test
+    command: echo Hello
