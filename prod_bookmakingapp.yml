@@ -1,0 +1,53 @@
+---
+- hosts: singlepc
+  gather_facts: no
+  tasks:
+  - include_vars:
+      file: vars/bookapp_ver.yml
+      name: bookapp 
+  - name: 1. confirming existing bookmaking app version
+    shell: ls -lhs /opt/bookmaking/dashboard | awk '{print $12}' | cut -d"/" -f4
+    register: out
+
+  - debug: var=out.stdout_lines
+
+  - name: 2. verifying java process
+    shell: ps aux | grep gksu\ java | grep -v grep
+    register: javaout
+    when: out.stdout != bookapp.version
+    tags: termjava
+  
+  - debug: msg="Same version is currently installed OR No java process was found"
+    when: javaout.stdout is not defined
+
+  - name: 3. killing java process
+    command: killall java
+    when: javaout.stdout is defined
+    tags: termjava
+
+  - name: 4. uploading and extracting compressed file to remote location
+    unarchive: src=/tmp/bookapp.version.tar.gz dest=/opt/bookmaking/ owner=root group=root
+    when: out.stdout != bookapp.version
+    tags: putbookappdir
+
+  - name: 5. removing the dashboard softlink
+    file: src=/opt/bookmaking/dashboard state=absent
+    stat: path=/opt/bookmaking/dashboard
+    register: sym
+    when: ( out.stdout != bookapp.version and ( sym.stat.islnk is defined and sym.stat.islnk ) )
+
+  - name: 6. creating symlink
+    file: src=/opt/bookmaking/bookapp.version path=/opt/bookmaking/dashboard state=link force=yes owner=root group=root mode=0777
+    stat: path=/opt/bookmaking/bookapp.version
+    register: mys
+    when: ( out.stdout != bookapp.version and ( mys.stat.isdir is defined and mys.stat.isdir ) )
+
+  - name: 7. deleting the compressed file
+    file: path=/opt/bookmaking/bookapp.version.tar.gz state=absent
+    when: out.stdout != bookapp.version
+
+  - name: 8. confirming new bookmaking app version
+    shell: ls -lhs /opt/bookmaking/dashboard | awk '{print $12}'
+    register: out1
+  - debug: var=out1.stdout_lines
+    tags: verifybookappver
