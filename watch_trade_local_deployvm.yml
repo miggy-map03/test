@@ -1,0 +1,72 @@
+---
+- hosts: 
+  tasks:
+  - name: 1. Checking if there are running VMs
+    shell: vboxmanage list runningvms | cut -d"\"" -f2
+    register: runningvm
+
+  - debug: var=runningvm.stdout_lines
+    when: runningvm.stdout != ""
+
+  - name: 2.  Shutting down all running VMs, if any
+    shell: vboxmanage controlvm runningvm.stdout acpipowerbutton
+    when: runningvm.stdout != ""
+
+  - name: 3. Deleting existing Windows7Lite directory on remote workstations, if there is.
+    file: path=/opt/Windows7Lite state=absent
+    stat: path=/opt/Windows7Lite
+    register: win7path
+    when: win7path.stat.isdir is defined and win7path.stat.isdir
+
+  - name: 4. Copying and Extracting archived file..
+    unarchive: src=/tmp/Windows7Lite.tar.gz dest=/opt/ owner=root group=root
+
+  - name: 5. Getting information from VirtualBox process
+    shell: ps aux | egrep 'Windows7Lite' | egrep 'VirtualBox' | awk '{print $2}'
+    register: pid
+
+  - name: 6. Terminating VirtualBox process
+    shell: kill -9 pid.stdout
+    when: pid.stdout != ""
+
+  - name: 7. Listing existing registered VMs
+    shell: vboxmanage list vms | awk '{print $1}'
+    register: out
+
+  - debug: var=out.stdout_lines
+
+  - name: 8. Removing registered VM
+    shell: vboxmanage unregistervm Windows7Lite
+    tags: unregvm
+
+  - name: 9. Register Windows 7 VM on VirtualBox
+    shell: vboxmanage registervm /opt/Windows7Lite/Windows7Lite.vbox
+    tags: regvm
+
+  - name: 10. Changing VM properties(Memory, PAE, Nested Paging)
+    shell: vboxmanage modifyvm Windows7Lite --memory 2048 --pae off --nestedpaging off
+    when: ansible_hostname != "PHPROD142" or ansible_hostname != "PHPROD144" or ansible_hostname != "PHPROD146" or ansible_hostname != "PHPROD136" or ansible_hostname != "PHPROD138" or ansible_hostname != "PHPROD140"
+    tags: modvmprop
+
+  - name: 11. List registered VM
+    shell: vboxmanage list vms | awk '{print $1}'
+    register: out
+
+  - debug: var=out.stdout_lines
+
+  - name: 12. Display VM Properties(Memory, PAE and Nested Paging)
+    shell: vboxmanage showvminfo Windows7Lite | egrep -i 'Memory|PAE|Nested Paging'
+    register: dispvmprop
+
+  - debug: var=dispvmprop.stdout_lines
+    tags: dispvmprop
+
+  - name: 13. Copying Watch and Trade desktop shortcut
+    unarchive: src=/tmp/WatchAndTradeDesktopShortcut.tar.gz dest=/usr/share/applications/Watch_and_Trade.desktop owner=root group=root mode=0644
+
+  - name: Check if Watch_and_Trade.desktop exist
+    shell: ls -lhs /usr/share/applications/Watch_and_Trade.desktop
+    register: wtout
+    tags: wtstat
+
+  - debug: var=wtout.stdout_lines
