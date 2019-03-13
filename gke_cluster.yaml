@@ -1,0 +1,15 @@
+---
+- hosts: localhost
+  tasks:
+  - name: Creating GKE Cluster
+    gcp_container_cluster:
+        name: test-from-ansible
+        initial_node_count: 2
+        node_config:
+          machine_type: n1-standard-1
+          disk_size_gb: 10
+        zone: asia-southeast1-a
+        project: "tiph-pinondondon-dev"
+        auth_kind: "serviceaccount"
+        service_account_file: "/home/miggy/dumbledore/tiph-pinondondon-dev-cca4fa30de14.json"
+        state: present
